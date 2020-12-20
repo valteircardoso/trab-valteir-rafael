@@ -1,0 +1,65 @@
+
+service: trab-valteir-rafael
+
+custom:
+  stage: ${opt:stage, self:provider.stage}
+    
+provider:
+  name: aws
+  runtime: python3.7
+  memorySize: 128
+  timeout: 300
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - sqs:ChangeMessageVisibility
+        - sqs:DeleteMessage
+        - sqs:ReceiveMessage
+        - sqs:SendMessage
+        - SNS:GetTopicAttributes
+        - SNS:SetTopicAttributes
+        - SNS:AddPermission
+        - SNS:RemovePermission
+        - SNS:DeleteTopic
+        - SNS:Subscribe
+        - SNS:ListSubscriptionsByTopic
+        - SNS:Publish
+        - SNS:Receive
+        - kms:Decrypt
+      Resource:   
+        - "arn:aws:sqs:us-east-1:*:terraform-fila-*"
+        - "arn:aws:sns:us-east-1:*:sns-topic-*"
+  environment: 
+      sqs_url: "https://sqs.us-east-1.amazonaws.com/559972492049/terraform-fila-principal-${self:custom.stage}"
+      sqs_url_dest: "https://sqs.us-east-1.amazonaws.com/559972492049/terraform-fila-secundaria-${self:custom.stage}"
+      arn_id: "arn:aws:sns:us-east-1:559972492049:sns-topic-${self:custom.stage}"
+package:
+  exclude:
+    - layer/**
+    
+layers:
+  LayerDependecies:
+    path: layer
+    description: "Learning layers"
+
+functions:
+  inseresqs:
+    handler: handler.inseresqs
+    events:
+      - http:
+          path: parametros/{mensagem}
+          method: get
+  recebe_sqs_principal_imprimir:
+    handler: handler.recebe_sqs_principal_imprimir
+    events:
+      - http:
+          path: parametros/
+          method : get
+  publica_topico:
+    handler: handler.publica_topico
+    events:
+      - http:
+          path: parametros/enviarMensagens/
+          method : get
+    layers:
+      - {Ref: LayerDependeciesLambdaLayer}
